@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>صندوق شكاوى الكفرة</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17212b;--muted:#637181;--accent:#176b58;--line:#dce3e8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif;line-height:1.7}
+header{background:linear-gradient(135deg,#124f43,#1d8069);color:white;padding:30px 18px;text-align:center}
+header h1{margin:0 0 8px;font-size:27px}header p{margin:0;color:#e1f3ed}
+main{max-width:760px;margin:26px auto;padding:0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 8px 24px #17212b0b}
+.notice{background:#eef7f3;border:1px solid #cfe7dc;color:#245847;padding:12px 14px;border-radius:10px;margin-bottom:18px;font-size:14px}
+label{display:block;font-weight:700;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5dc;border-radius:9px;font:inherit;background:white;color:var(--ink)}
+textarea{min-height:130px;resize:vertical}
+button{border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;font-weight:700;padding:13px 22px;cursor:pointer;margin-top:18px;width:100%}
+button:disabled{opacity:.6;cursor:wait}
+#message{display:none;margin-top:16px;padding:12px;border-radius:9px}
+#message.ok{display:block;background:#e8f6ed;color:#17633b}
+#message.err{display:block;background:#fff0ef;color:#9d2b25}
+small{color:var(--muted);display:block;margin-top:5px}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:22px}
+</style>
+</head>
+<body>
+<header>
+  <h1>صندوق شكاوى ومقترحات مدينة الكفرة</h1>
+  <p>معاً من أجل معالجة ارتفاع الأسعار وتحسين القدرة الشرائية</p>
+</header>
+<main>
+<section class="card">
+  <div class="notice">يمكنك إرسال شكواك أو مقترحك. يرجى عدم كتابة معلومات حساسة لا تحتاجها معالجة الشكوى.</div>
+  <form id="complaintForm">
+    <label for="full_name">الاسم (اختياري)</label>
+    <input id="full_name" name="full_name" maxlength="150" autocomplete="name" placeholder="اكتب اسمك إن رغبت">
+    <label for="phone">رقم الهاتف (اختياري)</label>
+    <input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel" placeholder="رقم للتواصل عند الحاجة">
+    <label for="neighborhood">الحي أو المنطقة</label>
+    <input id="neighborhood" name="neighborhood" maxlength="150" placeholder="مثال: وسط المدينة">
+    <label for="category">نوع البلاغ</label>
+    <select id="category" name="category" required>
+      <option value="">اختر نوع البلاغ</option>
+      <option>ارتفاع الأسعار</option>
+      <option>ضعف القدرة الشرائية</option>
+      <option>عدم وضوح الأسعار</option>
+      <option>نقص السلع الأساسية</option>
+      <option>مقترح أو موضوع آخر</option>
+    </select>
+    <label for="details">تفاصيل الشكوى أو المقترح</label>
+    <textarea id="details" name="details" required minlength="10" maxlength="5000" placeholder="اشرح المشكلة، ومكان حدوثها، وأي تفاصيل تساعد على فهمها..."></textarea>
+    <small>من 10 إلى 5000 حرف.</small>
+    <button id="submitBtn" type="submit">إرسال الشكوى</button>
+    <div id="message" role="status" aria-live="polite"></div>
+  </form>
+</section>
+</main>
+<footer>صندوق شكاوى ومقترحات مدينة الكفرة</footer>
+<script>
+const SUPABASE_URL = "https://aaxlbwaetccxcahhvcpr.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_9vmHFrBqzbwfpLpa7jM0ZA_l8psWc4-";
+const form = document.getElementById("complaintForm");
+const button = document.getElementById("submitBtn");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  message.className = "";
+  message.textContent = "";
+  const payload = {
+    full_name: form.full_name.value.trim() || null,
+    phone: form.phone.value.trim() || null,
+    neighborhood: form.neighborhood.value.trim() || null,
+    category: form.category.value.trim(),
+    details: form.details.value.trim()
+  };
+  if (!payload.category || payload.details.length < 10) {
+    message.className = "err";
+    message.textContent = "يرجى اختيار نوع البلاغ وكتابة تفاصيل لا تقل عن 10 أحرف.";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "جارٍ الإرسال...";
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/complaints`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(detail || `HTTP ${response.status}`);
+    }
+    form.reset();
+    message.className = "ok";
+    message.textContent = "تم استلام شكواك بنجاح. شكراً لمساهمتك.";
+  } catch (error) {
+    console.error(error);
+    message.className = "err";
+    message.textContent = "تعذر إرسال الشكوى حالياً. تحقق من اتصال الإنترنت وحاول مرة أخرى. إذا تكرر الخطأ، تواصل مع مسؤول الموقع.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "إرسال الشكوى";
+  }
+});
+</script>
+</body>
+</html>
